@@ -315,12 +315,17 @@ export function buildSingboxJson(
   // keep working; admins flip to url-test via `?bundle=url-test`.
   const bundle = opts.bundle ?? 'selector';
   let primaryTag = 'direct';
+  // Keep RU-located exits out of the automatic "best latency" pick: a Russian
+  // exit hands the user a Russian IP (no censorship bypass — defeats the VPN).
+  // They stay in the manual selector list, just never the auto default/urltest.
+  const foreignTags = proxyTags.filter((t) => !t.includes('🇷🇺'));
+  const autoPool = foreignTags.length > 0 ? foreignTags : proxyTags;
   if (proxyTags.length > 0) {
     if (bundle === 'url-test') {
       outbounds.push({
         type: 'urltest',
         tag: 'Auto-URLTest',
-        outbounds: proxyTags,
+        outbounds: autoPool,
         url: opts.urltestProbeUrl ?? 'https://www.gstatic.com/generate_204',
         interval: `${opts.urltestIntervalSec ?? 300}s`,
         tolerance: 50,
@@ -331,7 +336,7 @@ export function buildSingboxJson(
         type: 'selector',
         tag: 'Auto',
         outbounds: [...proxyTags, 'direct'],
-        default: proxyTags[0],
+        default: autoPool[0],
       });
       primaryTag = 'Auto';
     }
