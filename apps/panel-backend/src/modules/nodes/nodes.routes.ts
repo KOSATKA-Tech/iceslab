@@ -46,7 +46,7 @@ async function renderRefreshBootstrapCommand(
 ): Promise<string> {
   const panelIp = await getPanelPublicIp();
   const lines = [
-    'bash <(curl -fsSL https://raw.githubusercontent.com/icecompany-tech/iceslab/main/scripts/install-iceslab-node.sh) \\',
+    'bash <(curl -fsSL https://raw.githubusercontent.com/KOSATKA-Tech/iceslab/kosatka-prod/scripts/install-iceslab-node.sh) \\',
     `  --panel-url ${panelUrl} \\`,
     `  --bootstrap ${token} \\`,
     `  --protocol ${protocol} \\`,
