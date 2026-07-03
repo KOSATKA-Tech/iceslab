@@ -337,24 +337,29 @@ export function buildSingboxJson(
       // auto-selection out of the box (route.final → Auto → 🚀 Optimal) but can
       // still open "Auto" and pin a specific node. RU exits stay out of the auto
       // pool (autoPool) — a Russian exit would hand back a Russian IP.
-      outbounds.push({
-        type: 'urltest',
-        tag: '🚀 Optimal',
-        outbounds: autoPool,
-        url: opts.urltestProbeUrl ?? 'https://www.gstatic.com/generate_204',
-        interval: `${opts.urltestIntervalSec ?? 300}s`,
-        tolerance: 50,
-      });
-      outbounds.push({
-        type: 'selector',
-        tag: 'Auto',
-        outbounds: ['🚀 Optimal', ...proxyTags, 'direct'],
-        default: '🚀 Optimal',
-      });
+      // unshift (not push) so the "Auto" group renders FIRST in every client's
+      // node list — users open the sub and see auto-select at the top, not
+      // buried under the individual nodes.
+      outbounds.unshift(
+        {
+          type: 'selector',
+          tag: 'Auto',
+          outbounds: ['🚀 Optimal', ...proxyTags, 'direct'],
+          default: '🚀 Optimal',
+        },
+        {
+          type: 'urltest',
+          tag: '🚀 Optimal',
+          outbounds: autoPool,
+          url: opts.urltestProbeUrl ?? 'https://www.gstatic.com/generate_204',
+          interval: `${opts.urltestIntervalSec ?? 300}s`,
+          tolerance: 50,
+        },
+      );
       primaryTag = 'Auto';
     } else {
       // A single foreign node — a urltest of one is pointless; plain selector.
-      outbounds.push({
+      outbounds.unshift({
         type: 'selector',
         tag: 'Auto',
         outbounds: [...proxyTags, 'direct'],
