@@ -331,7 +331,29 @@ export function buildSingboxJson(
         tolerance: 50,
       });
       primaryTag = 'Auto-URLTest';
+    } else if (autoPool.length > 1) {
+      // Default bundle: an auto-latency `urltest` ("🚀 Optimal") wrapped in an
+      // "Auto" selector that defaults to it. The user gets fastest-node
+      // auto-selection out of the box (route.final → Auto → 🚀 Optimal) but can
+      // still open "Auto" and pin a specific node. RU exits stay out of the auto
+      // pool (autoPool) — a Russian exit would hand back a Russian IP.
+      outbounds.push({
+        type: 'urltest',
+        tag: '🚀 Optimal',
+        outbounds: autoPool,
+        url: opts.urltestProbeUrl ?? 'https://www.gstatic.com/generate_204',
+        interval: `${opts.urltestIntervalSec ?? 300}s`,
+        tolerance: 50,
+      });
+      outbounds.push({
+        type: 'selector',
+        tag: 'Auto',
+        outbounds: ['🚀 Optimal', ...proxyTags, 'direct'],
+        default: '🚀 Optimal',
+      });
+      primaryTag = 'Auto';
     } else {
+      // A single foreign node — a urltest of one is pointless; plain selector.
       outbounds.push({
         type: 'selector',
         tag: 'Auto',
