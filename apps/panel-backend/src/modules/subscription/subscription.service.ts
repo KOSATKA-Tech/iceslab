@@ -10,7 +10,7 @@ import {
 // kept on the User row for backwards-compat but never filters subscription
 // output.
 import { allocatePeer } from '../amneziawg/amneziawg.service.js';
-import { getHiddenCascadeNodeIds } from '../cascades/cascade.service.js';
+import { getHiddenCascadeNodeIds, getBalancerEntryNodeIds } from '../cascades/cascade.service.js';
 import { getCachedBindings, bindingsCacheKey } from './subscription.bindings-cache.js';
 import { buildNaiveUri } from '../../core-adapters/naive/index.js';
 import {
@@ -259,6 +259,9 @@ export async function generateSubscription(
     bindings.length = 0;
     bindings.push(...kept);
   }
+  // Balancer-cascade entries are relabelled to the "🚀 Optimal" auto node in the
+  // endpoint name below (they front N latency-balanced exits behind one pick).
+  const balancerEntries = await getBalancerEntryNodeIds();
 
   // Slice 28 — smart node selection. When the route passed topN+cfCountry,
   // we rank distinct nodes by region match + utilization, take the top-N,
@@ -318,9 +321,11 @@ export async function generateSubscription(
       const host = hostRow?.addressOverride ?? baseHost;
       const port = hostRow?.portOverride ?? basePort;
       const hostRemark = hostRow?.remark ?? '';
-      const nodeName = hostRemark && hostRemark !== 'Default'
-        ? `${b.node.name} · ${hostRemark}`
-        : b.node.name;
+      const nodeName = balancerEntries.has(b.node.id)
+        ? '🚀 Оптимальная'
+        : hostRemark && hostRemark !== 'Default'
+          ? `${b.node.name} · ${hostRemark}`
+          : b.node.name;
       const hostOverrides = hostRow ?? null;
 
     // Slice 30 — common per-host metadata threaded onto each endpoint so
