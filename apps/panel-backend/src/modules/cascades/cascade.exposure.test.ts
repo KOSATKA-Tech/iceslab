@@ -78,4 +78,23 @@ describe('getHiddenCascadeNodeIds (cascade subscription exposure)', () => {
     expect(hidden.has(c)).toBe(true); // exit of cas2
     expect(hidden.size).toBe(1);
   });
+
+  it('does NOT hide balancer exits — they egress direct and stay exposed', async () => {
+    const ru = await node('ru');
+    const de = await node('de');
+    const nl = await node('nl');
+    await prisma.cascade.create({
+      data: {
+        name: 'opt',
+        enabled: true,
+        mode: 'balancer',
+        hops: { create: [ru, de, nl].map((nodeId, i) => ({ nodeId, position: i })) },
+      },
+    });
+    invalidateHiddenCascadeNodeCache();
+
+    // ru entry is relabelled elsewhere; de+nl parallel exits stay exposed as
+    // individual endpoints — a balancer hides nothing.
+    expect((await getHiddenCascadeNodeIds()).size).toBe(0);
+  });
 });

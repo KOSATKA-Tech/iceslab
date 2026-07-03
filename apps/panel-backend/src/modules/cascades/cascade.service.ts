@@ -55,14 +55,22 @@ async function assertNodesExist(nodeIds: string[]): Promise<void> {
 
 // ───── Subscription exposure (cascade leak fix) ─────
 //
-// A node that is a NON-ENTRY hop (position > 0) of an ENABLED cascade is
-// chain-internal: users reach the cascade through the ENTRY node only, so a
-// transit/exit node must never be a directly-connectable subscription endpoint
-// - otherwise the client bypasses the chain and connects straight to the exit
-// (the leak we hit in the field: Happ connecting directly to the DE exit).
-// generateSubscription drops these node ids from a user's endpoint list. A node
-// that is ALSO an entry of some enabled cascade stays exposed (entries are the
-// reachable surface; v1 keeps a node in <=1 cascade, the subtraction is
+// A NON-ENTRY hop (position > 0) of an enabled CHAIN cascade is chain-internal:
+// users reach it through the ENTRY node only, so a transit/exit node must never
+// be a directly-connectable subscription endpoint - otherwise the client
+// bypasses the chain and connects straight to the exit (the leak we hit in the
+// field: Happ connecting directly to the DE exit, defeating a whitelist entry).
+//
+// BALANCER exits are different: each exit egresses DIRECTLY (it is a standalone
+// foreign node the entry just latency-balances across), so connecting to it
+// directly is equivalent to reaching it via the balancer - no chain to bypass,
+// no leak. We therefore KEEP balancer exits exposed as individual endpoints so
+// users can pick a specific country alongside the "Optimal" auto node. Only
+// CHAIN non-entry hops are hidden.
+//
+// generateSubscription drops the hidden node ids from a user's endpoint list. A
+// node that is ALSO an entry of some enabled cascade stays exposed (entries are
+// the reachable surface; v1 keeps a node in <=1 cascade, the subtraction is
 // defensive). Cached in-process (cascades change rarely) + busted on every
 // cascade write.
 let hiddenNodesCache: { value: Set<string>; expiresAt: number } | null = null;
@@ -99,8 +107,10 @@ export async function getHiddenCascadeNodeIds(): Promise<Set<string>> {
   if (hiddenNodesCache && Date.now() < hiddenNodesCache.expiresAt) {
     return hiddenNodesCache.value;
   }
+  // Only CHAIN cascades hide their downstream hops; balancer exits egress
+  // direct and stay exposed as individual endpoints (see the note above).
   const hops = await prisma.cascadeHop.findMany({
-    where: { cascade: { enabled: true } },
+    where: { cascade: { enabled: true, mode: 'chain' } },
     select: { nodeId: true, position: true },
   });
   const entry = new Set<string>();
