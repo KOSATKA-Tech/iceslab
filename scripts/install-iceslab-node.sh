@@ -1250,8 +1250,13 @@ ProtectHome=true
 # ProtectSystem=strict forbids /run writes by default. /run/xtables.lock
 # matters too, iptables uses it from awg-quick PostUp.
 # /etc/iptables/ for netfilter-persistent users (rules.v4 rewrites).
+# /etc/ufw/ so the agent can persist `ufw allow` rules — without it
+# firewall.Allow()/AllowFrom() fail with "/etc/ufw/user.rules is not
+# writable", the rule is dropped, and a cascade link-in port (24000+i)
+# listens but ufw silently blocks the entry node's dial → the exit shows
+# dead in the balancer. Caught live on cascade exits (Stockholm/Istanbul).
 # Caught live on a production node after fresh install.
-ReadWritePaths=-/var/log -/etc/iceslab-node -/etc/hysteria -/etc/xray -/usr/local/etc/xray -/etc/amnezia/amneziawg -/etc/caddy -/etc/mtg -/etc/mita -/var/lib/mita -/run -/etc/iptables
+ReadWritePaths=-/var/log -/etc/iceslab-node -/etc/hysteria -/etc/xray -/usr/local/etc/xray -/etc/amnezia/amneziawg -/etc/caddy -/etc/mtg -/etc/mita -/var/lib/mita -/run -/etc/iptables -/etc/ufw
 PrivateTmp=true
 
 # Journald log limits; without these a node running for months can balloon
