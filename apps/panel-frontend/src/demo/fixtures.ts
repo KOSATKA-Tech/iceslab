@@ -242,7 +242,7 @@ export const CASCADES: Cascade[] = [
   },
   {
     id: 'casc-us-relay',
-    name: '🚀 optimal-eu',
+    name: 'optimal-eu',
     enabled: true,
     mode: 'balancer',
     hops: [

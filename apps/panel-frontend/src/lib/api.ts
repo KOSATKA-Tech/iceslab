@@ -776,7 +776,7 @@ export interface CascadeHop {
 }
 
 /** 'chain' = sequential entry→…→exit. 'balancer' = one entry that latency-
- *  balances across N parallel exits (the "🚀 Optimal" auto node). */
+ *  balances across N parallel exits (the "Optimal" auto node). */
 export type CascadeMode = 'chain' | 'balancer';
 
 export interface Cascade {

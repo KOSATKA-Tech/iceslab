@@ -180,7 +180,7 @@ export function CascadesPanel() {
                 {c.enabled ? 'enabled' : 'disabled'}
               </Badge>
               <Badge size="sm" color={c.mode === 'balancer' ? 'violet' : 'gray'} variant="light">
-                {c.mode === 'balancer' ? `⚖ ${t('cascades.mode.balancer')}` : t('cascades.mode.chain')}
+                {c.mode === 'balancer' ? t('cascades.mode.balancer') : t('cascades.mode.chain')}
               </Badge>
             </Group>
             <Group gap={4} wrap="nowrap">
@@ -274,7 +274,7 @@ export function CascadesPanel() {
                       i === 0 ? (
                         <Stack gap={0} align="center" justify="center" style={{ color: VIOLET }}>
                           <Text size="9px" ff="monospace">
-                            ⚖ {t('cascades.balance')}
+                            {t('cascades.balance')}
                           </Text>
                           <IconArrowRight size={16} />
                         </Stack>
@@ -440,7 +440,7 @@ function CascadeFormModal({
             onChange={(v) => setMode(v as CascadeMode)}
             data={[
               { value: 'chain', label: t('cascades.mode.chain') },
-              { value: 'balancer', label: `⚖ ${t('cascades.mode.balancer')}` },
+              { value: 'balancer', label: t('cascades.mode.balancer') },
             ]}
           />
           <Text size="xs" c="dimmed" mt={4}>

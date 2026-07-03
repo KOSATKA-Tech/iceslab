@@ -559,7 +559,7 @@ export default {
       chain: 'chain',
       balancer: 'balancer',
       chainHint: 'Sequential: entry → transit → exit.',
-      balancerHint: 'One entry latency-balances across every hop below as an equal parallel exit (the "🚀 Optimal" auto node).',
+      balancerHint: 'One entry latency-balances across every hop below as an equal parallel exit (the "Optimal" auto node).',
     },
   },
   squads: {
