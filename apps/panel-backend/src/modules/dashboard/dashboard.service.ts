@@ -3,6 +3,7 @@ import { prisma } from '../../prisma.js';
 import { redis } from '../../lib/redis.js';
 import { collectSystemMetrics, type SystemMetrics } from './system-metrics.js';
 import { readCachedNodeMetrics } from '../nodes/nodes.cron.js';
+import { getHiddenCascadeNodeIds } from '../cascades/cascade.service.js';
 
 // Dashboard overview is hit by every admin's browser every 10s. The aggregates
 // (groupBy on NodeUsageHistory + UserTraffic counts) cost a few hundred ms
@@ -148,9 +149,23 @@ function startOfYear(): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
 }
 
-async function sumNodeUsageSince(since: Date, until?: Date): Promise<number> {
-  const where: { hour: { gte: Date; lt?: Date } } = { hour: { gte: since } };
+// Grand totals must count each user byte ONCE. In a cascade the same bytes are
+// recorded on every hop node (the entry's user inbound AND each downstream
+// link-in), so summing node_usage_history across all nodes multi-counts cascade
+// traffic. `excludeNodeIds` drops the non-entry hop nodes (getHiddenCascadeNodeIds)
+// so only the entry (and every standalone node) is summed — one count per byte.
+// Empty array => no exclusion (byte-identical to before, so non-cascade fleets
+// are unaffected).
+async function sumNodeUsageSince(
+  since: Date,
+  until: Date | undefined,
+  excludeNodeIds: string[],
+): Promise<number> {
+  const where: { hour: { gte: Date; lt?: Date }; nodeId?: { notIn: string[] } } = {
+    hour: { gte: since },
+  };
   if (until) where.hour.lt = until;
+  if (excludeNodeIds.length > 0) where.nodeId = { notIn: excludeNodeIds };
   const agg = await prisma.nodeUsageHistory.aggregate({
     where,
     _sum: { downloadBytes: true, uploadBytes: true },
@@ -160,11 +175,15 @@ async function sumNodeUsageSince(since: Date, until?: Date): Promise<number> {
   return dl + ul;
 }
 
-async function last24hHourly(): Promise<{ hour: string; bytes: number }[]> {
+async function last24hHourly(
+  excludeNodeIds: string[],
+): Promise<{ hour: string; bytes: number }[]> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const where: { hour: { gte: Date }; nodeId?: { notIn: string[] } } = { hour: { gte: since } };
+  if (excludeNodeIds.length > 0) where.nodeId = { notIn: excludeNodeIds };
   const rows = await prisma.nodeUsageHistory.groupBy({
     by: ['hour'],
-    where: { hour: { gte: since } },
+    where,
     _sum: { downloadBytes: true, uploadBytes: true },
     orderBy: { hour: 'asc' },
   });
@@ -226,6 +245,9 @@ async function trafficMetrics(): Promise<DashboardOverview['traffic']> {
   const month = startOfMonth();
   const calMonth = startOfCalendarMonth();
   const year = startOfYear();
+  // Non-entry cascade hop nodes double-count the same bytes; exclude them from
+  // every grand-total window so the dashboard shows real egress, not N× cascade.
+  const excludeNodeIds = [...(await getHiddenCascadeNodeIds())];
 
   const [
     todayBytes,
@@ -240,18 +262,18 @@ async function trafficMetrics(): Promise<DashboardOverview['traffic']> {
     lastYearBytes,
     hourly,
   ] = await Promise.all([
-    sumNodeUsageSince(today),
-    sumNodeUsageSince(yesterday, today),
-    sumNodeUsageSince(week),
-    sumNodeUsageSince(month),
-    sumNodeUsageSince(calMonth),
-    sumNodeUsageSince(year),
+    sumNodeUsageSince(today, undefined, excludeNodeIds),
+    sumNodeUsageSince(yesterday, today, excludeNodeIds),
+    sumNodeUsageSince(week, undefined, excludeNodeIds),
+    sumNodeUsageSince(month, undefined, excludeNodeIds),
+    sumNodeUsageSince(calMonth, undefined, excludeNodeIds),
+    sumNodeUsageSince(year, undefined, excludeNodeIds),
     // Prior windows: [14d,7d), [60d,30d), last calendar month, last year.
-    sumNodeUsageSince(daysAgo(14), week),
-    sumNodeUsageSince(daysAgo(60), month),
-    sumNodeUsageSince(startOfLastCalendarMonth(), calMonth),
-    sumNodeUsageSince(startOfLastYear(), year),
-    last24hHourly(),
+    sumNodeUsageSince(daysAgo(14), week, excludeNodeIds),
+    sumNodeUsageSince(daysAgo(60), month, excludeNodeIds),
+    sumNodeUsageSince(startOfLastCalendarMonth(), calMonth, excludeNodeIds),
+    sumNodeUsageSince(startOfLastYear(), year, excludeNodeIds),
+    last24hHourly(excludeNodeIds),
   ]);
 
   return {
