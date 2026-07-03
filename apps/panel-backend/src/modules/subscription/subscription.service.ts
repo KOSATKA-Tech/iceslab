@@ -322,7 +322,7 @@ export async function generateSubscription(
       const port = hostRow?.portOverride ?? basePort;
       const hostRemark = hostRow?.remark ?? '';
       const nodeName = balancerEntries.has(b.node.id)
-        ? '🚀 Оптимальная'
+        ? 'Оптимальная'
         : hostRemark && hostRemark !== 'Default'
           ? `${b.node.name} · ${hostRemark}`
           : b.node.name;
