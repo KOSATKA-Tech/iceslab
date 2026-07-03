@@ -123,6 +123,12 @@ export interface HopConfig {
   linkIngressPort?: number;
   /** Address(es) of the previous hop allowed to reach linkIngressPort. */
   linkAllowFrom?: string[];
+  /** C3-auto — the balancer entry's top-level `observatory` (probes link-outs by
+   *  RTT). Undefined on chain hops / non-entry hops. */
+  observatory?: Record<string, unknown>;
+  /** C3-auto — the balancer entry's `routing.balancers` entries. Its user rule
+   *  targets one via `balancerTag`. Undefined on chain hops / non-entry hops. */
+  balancers?: Record<string, unknown>[];
 }
 
 const LINK_IN_TAG = 'cascade-link-in';
@@ -229,4 +235,93 @@ export function buildCascadeConfigs(
       linkAllowFrom,
     };
   });
+}
+
+// ───── C3-auto — latency-balanced cascade (the "auto" / optimal-location node) ─────
+// One entry that dials EVERY exit (a link-out each), a top-level `observatory`
+// that probes those link-outs by RTT, and a `leastPing` balancer that routes
+// each user connection through the exit with the lowest *observed* RTT.
+//
+// Why leastPing (not leastLoad): in xray-core the top-level `observatory` feeds
+// `leastPing`; `leastLoad` ignores it and uses its own `burstObservatory` +
+// `costs`. This mirrors the proven subscription balancer (xrayjson.ts). We use
+// RTT deliberately: observed latency is the emergent load/capacity signal
+// (Peak-EWMA principle — a saturated, slow, or far exit probes slower and is
+// deprioritised automatically), so no server-side metric loop or per-tick config
+// re-push (which would restart the entry and drop its users) is needed. Node
+// up/down is handled the same way — a dead exit fails the probe and drops out of
+// the pool with zero panel involvement.
+//
+// `subjectSelector`/`selector: [LINK_OUT_TAG]` prefix-match each
+// `cascade-link-out-<i>` (xray selectors are prefix matches).
+const BALANCER_TAG = 'auto';
+const OBSERVATORY_PROBE_URL = 'https://www.gstatic.com/generate_204';
+const OBSERVATORY_PROBE_INTERVAL = '5m';
+
+function linkOutboundTagged(host: string, cred: LinkCred, tag: string): Record<string, unknown> {
+  return { ...linkOutbound(host, cred), tag };
+}
+
+/**
+ * Build the entry + exit fragments for a BALANCER cascade (one entry, N parallel
+ * exits). `linkCreds[i]` is the entry->exits[i] link cred (each exit listens on
+ * its own link-in). Returns exactly 1 entry + N exit HopConfigs (no transit).
+ */
+export function buildBalancerCascadeConfigs(
+  entry: CascadeConfigHopInput,
+  exits: CascadeConfigHopInput[],
+  linkCreds: LinkCred[],
+): HopConfig[] {
+  const configs: HopConfig[] = [];
+
+  // Entry — one link-out per exit, all sharing the LINK_OUT_TAG prefix so the
+  // observatory/balancer selector matches them; plus freedom for split-routing.
+  const entryOutbounds: Record<string, unknown>[] = exits.map((ex, i) =>
+    linkOutboundTagged(ex.nodeHost, linkCreds[i]!, `${LINK_OUT_TAG}-${i}`),
+  );
+  entryOutbounds.push(freedomOutbound);
+
+  configs.push({
+    nodeId: entry.nodeId,
+    position: entry.position,
+    role: 'entry',
+    inbounds: [],
+    outbounds: entryOutbounds,
+    // User traffic -> balancer (leastPing picks the lowest-RTT exit). Split-
+    // routing presets can prepend direct/block rules ahead of this later.
+    routingRules: [{ type: 'field', network: 'tcp,udp', balancerTag: BALANCER_TAG }],
+    observatory: {
+      subjectSelector: [LINK_OUT_TAG],
+      // xray-core json tag is `probeURL` (capital URL); a lowercase key is
+      // silently ignored and the probe falls back to xray's default target.
+      probeURL: OBSERVATORY_PROBE_URL,
+      probeInterval: OBSERVATORY_PROBE_INTERVAL,
+    },
+    balancers: [
+      {
+        tag: BALANCER_TAG,
+        selector: [LINK_OUT_TAG],
+        // leastPing consumes the top-level observatory and routes each
+        // connection through the exit with the lowest observed RTT.
+        strategy: { type: 'leastPing' },
+      },
+    ],
+  });
+
+  // Exits — each terminates the link and egresses via freedom.
+  exits.forEach((ex, i) => {
+    const cred = linkCreds[i]!;
+    configs.push({
+      nodeId: ex.nodeId,
+      position: ex.position,
+      role: 'exit',
+      inbounds: [linkInbound(cred)],
+      outbounds: [freedomOutbound],
+      routingRules: [{ type: 'field', inboundTag: [LINK_IN_TAG], outboundTag: DIRECT_TAG }],
+      linkIngressPort: cred.port,
+      linkAllowFrom: [entry.nodeHost],
+    });
+  });
+
+  return configs;
 }
