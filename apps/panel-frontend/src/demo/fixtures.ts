@@ -232,6 +232,7 @@ export const CASCADES: Cascade[] = [
     id: 'casc-ru-exit-bypass',
     name: 'ru-exit-bypass',
     enabled: true,
+    mode: 'chain',
     hops: [
       { id: 'hop-ru-0', nodeId: 'node-xray-de-01', nodeName: 'xray-de-01', position: 0, entryProtocol: 'xray', linkProtocol: 'vless' },
       { id: 'hop-ru-1', nodeId: 'node-xray-de-02', nodeName: 'xray-de-02', position: 1, entryProtocol: null, linkProtocol: null },
@@ -241,11 +242,13 @@ export const CASCADES: Cascade[] = [
   },
   {
     id: 'casc-us-relay',
-    name: 'us-eu-relay',
+    name: '🚀 optimal-eu',
     enabled: true,
+    mode: 'balancer',
     hops: [
       { id: 'hop-us-0', nodeId: 'node-xray-us-01', nodeName: 'xray-us-01', position: 0, entryProtocol: 'xray', linkProtocol: 'vless' },
       { id: 'hop-us-1', nodeId: 'node-xray-de-01', nodeName: 'xray-de-01', position: 1, entryProtocol: null, linkProtocol: null },
+      { id: 'hop-us-2', nodeId: 'node-xray-de-02', nodeName: 'xray-de-02', position: 2, entryProtocol: null, linkProtocol: null },
     ],
     createdAt: iso(18 * DAY),
     updatedAt: iso(2 * DAY),
