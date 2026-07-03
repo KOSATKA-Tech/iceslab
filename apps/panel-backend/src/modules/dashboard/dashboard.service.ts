@@ -3,7 +3,7 @@ import { prisma } from '../../prisma.js';
 import { redis } from '../../lib/redis.js';
 import { collectSystemMetrics, type SystemMetrics } from './system-metrics.js';
 import { readCachedNodeMetrics } from '../nodes/nodes.cron.js';
-import { getHiddenCascadeNodeIds } from '../cascades/cascade.service.js';
+import { getCascadeStatsExcludedNodeIds } from '../cascades/cascade.service.js';
 
 // Dashboard overview is hit by every admin's browser every 10s. The aggregates
 // (groupBy on NodeUsageHistory + UserTraffic counts) cost a few hundred ms
@@ -245,9 +245,11 @@ async function trafficMetrics(): Promise<DashboardOverview['traffic']> {
   const month = startOfMonth();
   const calMonth = startOfCalendarMonth();
   const year = startOfYear();
-  // Non-entry cascade hop nodes double-count the same bytes; exclude them from
-  // every grand-total window so the dashboard shows real egress, not N× cascade.
-  const excludeNodeIds = [...(await getHiddenCascadeNodeIds())];
+  // Non-entry cascade hop nodes (chain AND balancer) double-count the same
+  // bytes; exclude them from every grand-total window so the dashboard shows
+  // real egress, not N× cascade. NB: this is the stats-specific set, NOT the
+  // subscription-exposure set (which keeps balancer exits visible).
+  const excludeNodeIds = [...(await getCascadeStatsExcludedNodeIds())];
 
   const [
     todayBytes,

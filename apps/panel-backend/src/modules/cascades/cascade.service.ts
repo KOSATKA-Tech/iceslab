@@ -80,6 +80,7 @@ const HIDDEN_NODES_TTL_MS = 60_000;
 export function invalidateHiddenCascadeNodeCache(): void {
   hiddenNodesCache = null;
   balancerEntryCache = null;
+  statsExcludedCache = null;
 }
 
 /**
@@ -101,6 +102,28 @@ export async function getBalancerEntryLabels(): Promise<Map<string, string>> {
   const entries = new Map(hops.map((h) => [h.nodeId, h.cascade.name] as const));
   balancerEntryCache = { value: entries, expiresAt: Date.now() + HIDDEN_NODES_TTL_MS };
   return entries;
+}
+
+// Stats double-count exclusion is a DIFFERENT concern from subscription
+// exposure: every non-entry hop node (chain OR balancer) records the same
+// bytes the entry already recorded (entry user inbound + each downstream
+// link-in), so grand totals must drop ALL of them regardless of whether the
+// node is exposed in subscriptions. (getHiddenCascadeNodeIds is subscription-
+// only and hides just chain hops — do NOT reuse it here, that double-counts
+// balancer exits.) Shares the same 60s cache + invalidation.
+let statsExcludedCache: { value: Set<string>; expiresAt: number } | null = null;
+
+export async function getCascadeStatsExcludedNodeIds(): Promise<Set<string>> {
+  if (statsExcludedCache && Date.now() < statsExcludedCache.expiresAt) {
+    return statsExcludedCache.value;
+  }
+  const hops = await prisma.cascadeHop.findMany({
+    where: { cascade: { enabled: true }, position: { gt: 0 } },
+    select: { nodeId: true },
+  });
+  const excluded = new Set(hops.map((h) => h.nodeId));
+  statsExcludedCache = { value: excluded, expiresAt: Date.now() + HIDDEN_NODES_TTL_MS };
+  return excluded;
 }
 
 export async function getHiddenCascadeNodeIds(): Promise<Set<string>> {
