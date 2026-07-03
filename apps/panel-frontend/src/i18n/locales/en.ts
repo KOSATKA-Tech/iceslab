@@ -553,6 +553,14 @@ export default {
     entryProtocol: 'Entry protocol',
     linkProtocol: 'Link to next',
     addHop: 'Add hop',
+    balance: 'balance',
+    modeLabel: 'Mode',
+    mode: {
+      chain: 'chain',
+      balancer: 'balancer',
+      chainHint: 'Sequential: entry → transit → exit.',
+      balancerHint: 'One entry latency-balances across every hop below as an equal parallel exit (the "🚀 Optimal" auto node).',
+    },
   },
   squads: {
     title: 'Internal squads',

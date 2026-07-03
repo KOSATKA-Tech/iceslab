@@ -775,10 +775,15 @@ export interface CascadeHop {
   linkProtocol: string | null;
 }
 
+/** 'chain' = sequential entry→…→exit. 'balancer' = one entry that latency-
+ *  balances across N parallel exits (the "🚀 Optimal" auto node). */
+export type CascadeMode = 'chain' | 'balancer';
+
 export interface Cascade {
   id: string;
   name: string;
   enabled: boolean;
+  mode: CascadeMode;
   hops: CascadeHop[];
   createdAt: string;
   updatedAt: string;
@@ -794,12 +799,14 @@ export interface CascadeHopInput {
 export interface CreateCascadeInput {
   name: string;
   enabled?: boolean;
+  mode?: CascadeMode;
   hops: CascadeHopInput[];
 }
 
 export interface UpdateCascadeInput {
   name?: string;
   enabled?: boolean;
+  mode?: CascadeMode;
   hops?: CascadeHopInput[];
 }
 
