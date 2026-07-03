@@ -702,6 +702,12 @@ model Cascade {
   // 'chain' (sequential entry→…→exit, default/legacy) or 'balancer' (one entry
   // that latency/load-balances across N parallel exits — the "auto" node).
   mode      String   @default("chain") @db.VarChar(16)
+  // When true, this cascade's non-entry hops stay VISIBLE as individual
+  // subscription endpoints instead of being hidden by the leak-fix. Default
+  // false keeps a chain exit chain-internal; set true only when the operator
+  // deliberately wants the exit usable directly too (e.g. a whitelist cascade
+  // whose foreign exit is also a fine standalone node).
+  exposeExits Boolean @default(false) @map("expose_exits")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

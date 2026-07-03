@@ -334,11 +334,15 @@ export async function generateSubscription(
       const host = hostRow?.addressOverride ?? baseHost;
       const port = hostRow?.portOverride ?? basePort;
       const hostRemark = hostRow?.remark ?? '';
-      const nodeName =
+      // Brand every endpoint with the KOSATKA whale. Country flags stay in the
+      // per-host remark; the balancer entry carries no flag, so the whale is its
+      // sole mark (its cascade name is kept flag/emoji-free in the panel).
+      const rawNodeName =
         balancerEntries.get(b.node.id) ??
         (hostRemark && hostRemark !== 'Default'
           ? `${b.node.name} · ${hostRemark}`
           : b.node.name);
+      const nodeName = `🐋 ${rawNodeName}`;
       const hostOverrides = hostRow ?? null;
 
     // Slice 30 — common per-host metadata threaded onto each endpoint so

@@ -132,8 +132,10 @@ export async function getHiddenCascadeNodeIds(): Promise<Set<string>> {
   }
   // Only CHAIN cascades hide their downstream hops; balancer exits egress
   // direct and stay exposed as individual endpoints (see the note above).
+  // `exposeExits` opts a chain cascade out of hiding too — its exit is then a
+  // usable standalone endpoint (e.g. a whitelist cascade's foreign exit).
   const hops = await prisma.cascadeHop.findMany({
-    where: { cascade: { enabled: true, mode: 'chain' } },
+    where: { cascade: { enabled: true, mode: 'chain', exposeExits: false } },
     select: { nodeId: true, position: true },
   });
   const entry = new Set<string>();
