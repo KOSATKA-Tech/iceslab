@@ -66,7 +66,7 @@ async function assertNodesExist(nodeIds: string[]): Promise<void> {
 // defensive). Cached in-process (cascades change rarely) + busted on every
 // cascade write.
 let hiddenNodesCache: { value: Set<string>; expiresAt: number } | null = null;
-let balancerEntryCache: { value: Set<string>; expiresAt: number } | null = null;
+let balancerEntryCache: { value: Map<string, string>; expiresAt: number } | null = null;
 const HIDDEN_NODES_TTL_MS = 60_000;
 
 export function invalidateHiddenCascadeNodeCache(): void {
@@ -75,20 +75,22 @@ export function invalidateHiddenCascadeNodeCache(): void {
 }
 
 /**
- * Node ids that are the ENTRY (position 0) of an enabled `balancer` cascade.
- * The subscription relabels these to the "🚀 Optimal" auto node (the entry
- * hides its N latency-balanced exits behind one selectable endpoint). Cached +
+ * Map of ENTRY node id (position 0 of an enabled `balancer` cascade) → the
+ * cascade's own name. The subscription relabels these entries to that name (the
+ * entry hides its N latency-balanced exits behind one selectable endpoint), so
+ * the operator controls the user-facing label by naming the cascade in the
+ * panel (e.g. "Оптимальная") — no display string is hardcoded here. Cached +
  * busted alongside the hidden-node set on every cascade write.
  */
-export async function getBalancerEntryNodeIds(): Promise<Set<string>> {
+export async function getBalancerEntryLabels(): Promise<Map<string, string>> {
   if (balancerEntryCache && Date.now() < balancerEntryCache.expiresAt) {
     return balancerEntryCache.value;
   }
   const hops = await prisma.cascadeHop.findMany({
     where: { position: 0, cascade: { enabled: true, mode: 'balancer' } },
-    select: { nodeId: true },
+    select: { nodeId: true, cascade: { select: { name: true } } },
   });
-  const entries = new Set(hops.map((h) => h.nodeId));
+  const entries = new Map(hops.map((h) => [h.nodeId, h.cascade.name] as const));
   balancerEntryCache = { value: entries, expiresAt: Date.now() + HIDDEN_NODES_TTL_MS };
   return entries;
 }

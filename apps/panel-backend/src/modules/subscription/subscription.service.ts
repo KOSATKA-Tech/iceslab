@@ -10,7 +10,7 @@ import {
 // kept on the User row for backwards-compat but never filters subscription
 // output.
 import { allocatePeer } from '../amneziawg/amneziawg.service.js';
-import { getHiddenCascadeNodeIds, getBalancerEntryNodeIds } from '../cascades/cascade.service.js';
+import { getHiddenCascadeNodeIds, getBalancerEntryLabels } from '../cascades/cascade.service.js';
 import { getCachedBindings, bindingsCacheKey } from './subscription.bindings-cache.js';
 import { buildNaiveUri } from '../../core-adapters/naive/index.js';
 import {
@@ -259,9 +259,10 @@ export async function generateSubscription(
     bindings.length = 0;
     bindings.push(...kept);
   }
-  // Balancer-cascade entries are relabelled to the "🚀 Optimal" auto node in the
-  // endpoint name below (they front N latency-balanced exits behind one pick).
-  const balancerEntries = await getBalancerEntryNodeIds();
+  // Balancer-cascade entries are relabelled to their cascade's own name (the
+  // operator-set label, e.g. "Оптимальная") in the endpoint name below — they
+  // front N latency-balanced exits behind one pick.
+  const balancerEntries = await getBalancerEntryLabels();
 
   // Slice 28 — smart node selection. When the route passed topN+cfCountry,
   // we rank distinct nodes by region match + utilization, take the top-N,
@@ -289,6 +290,18 @@ export async function generateSubscription(
     // Preserve original order within the kept set so format output is stable.
     bindings.length = 0;
     bindings.push(...filtered);
+  }
+
+  // Final ordering: float balancer-cascade entries ("Оптимальная") to the top
+  // so the optimal auto-endpoint is the client's first, default pick. Stable
+  // partition — relative order of everything else is preserved.
+  if (balancerEntries.size > 0 && bindings.length > 1) {
+    const head = bindings.filter((b) => balancerEntries.has(b.node.id));
+    if (head.length > 0 && head.length < bindings.length) {
+      const tail = bindings.filter((b) => !balancerEntries.has(b.node.id));
+      bindings.length = 0;
+      bindings.push(...head, ...tail);
+    }
   }
 
   const endpoints: SubscriptionEndpoint[] = [];
@@ -321,11 +334,11 @@ export async function generateSubscription(
       const host = hostRow?.addressOverride ?? baseHost;
       const port = hostRow?.portOverride ?? basePort;
       const hostRemark = hostRow?.remark ?? '';
-      const nodeName = balancerEntries.has(b.node.id)
-        ? 'Оптимальная'
-        : hostRemark && hostRemark !== 'Default'
+      const nodeName =
+        balancerEntries.get(b.node.id) ??
+        (hostRemark && hostRemark !== 'Default'
           ? `${b.node.name} · ${hostRemark}`
-          : b.node.name;
+          : b.node.name);
       const hostOverrides = hostRow ?? null;
 
     // Slice 30 — common per-host metadata threaded onto each endpoint so
