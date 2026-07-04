@@ -271,7 +271,7 @@ export function buildCascadeConfigs(
 // `cascade-link-out-<i>` (xray selectors are prefix matches).
 const BALANCER_TAG = 'auto';
 const OBSERVATORY_PROBE_URL = 'https://www.gstatic.com/generate_204';
-const OBSERVATORY_PROBE_INTERVAL = '5m';
+const OBSERVATORY_PROBE_INTERVAL = '30s';
 
 function linkOutboundTagged(host: string, cred: LinkCred, tag: string): Record<string, unknown> {
   return { ...linkOutbound(host, cred), tag };
