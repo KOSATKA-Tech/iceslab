@@ -252,7 +252,8 @@ export function buildCascadeConfigs(
 // subscription-side balancer.
 const BALANCER_TAG = 'auto';
 const OBSERVATORY_PROBE_URL = 'https://www.gstatic.com/generate_204';
-const OBSERVATORY_PROBE_INTERVAL = '5m';
+// KOSATKA prod tuning: 30s (vs upstream 5m) for faster cascade exit failover.
+const OBSERVATORY_PROBE_INTERVAL = '30s';
 
 /** Like linkOutbound but with a caller-chosen tag, so N link-outs can share the
  *  LINK_OUT_TAG prefix (xray selectors are prefix matches) while staying
