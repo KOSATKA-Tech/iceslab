@@ -10,7 +10,7 @@ import {
 // kept on the User row for backwards-compat but never filters subscription
 // output.
 import { allocatePeer } from '../amneziawg/amneziawg.service.js';
-import { getHiddenCascadeNodeIds } from '../cascades/cascade.service.js';
+import { getHiddenCascadeNodeIds, getBalancerEntryLabels } from '../cascades/cascade.service.js';
 import { getCachedBindings, bindingsCacheKey } from './subscription.bindings-cache.js';
 import { buildNaiveUri } from '../../core-adapters/naive/index.js';
 import { deriveTuicPassword, deriveAnytlsPassword, deriveShadowtlsPassword, deriveSsPassword } from '../../lib/credentials.js';
@@ -263,6 +263,16 @@ export async function generateSubscription(
     bindings.push(...kept);
   }
 
+  // Balancer-cascade entries are relabelled to their cascade's own name (below)
+  // and moved to the front so the "Optimal" auto node leads the subscription.
+  const balancerEntries = await getBalancerEntryLabels();
+  if (balancerEntries.size > 0 && bindings.length > 1) {
+    const head = bindings.filter((b) => balancerEntries.has(b.node.id));
+    const tail = bindings.filter((b) => !balancerEntries.has(b.node.id));
+    bindings.length = 0;
+    bindings.push(...head, ...tail);
+  }
+
   // Slice 28 — smart node selection. When the route passed topN+cfCountry,
   // we rank distinct nodes by region match + utilization, take the top-N,
   // and filter bindings down to those. Falls through cleanly when topN<1
@@ -321,9 +331,11 @@ export async function generateSubscription(
       const host = hostRow?.addressOverride ?? baseHost;
       const port = hostRow?.portOverride ?? basePort;
       const hostRemark = hostRow?.remark ?? '';
-      const nodeName = hostRemark && hostRemark !== 'Default'
-        ? `${b.node.name} · ${hostRemark}`
-        : b.node.name;
+      const nodeName =
+        balancerEntries.get(b.node.id) ??
+        (hostRemark && hostRemark !== 'Default'
+          ? `${b.node.name} · ${hostRemark}`
+          : b.node.name);
       const hostOverrides = hostRow ?? null;
 
     // Slice 30 — common per-host metadata threaded onto each endpoint so

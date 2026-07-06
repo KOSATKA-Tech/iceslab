@@ -66,10 +66,29 @@ async function assertNodesExist(nodeIds: string[]): Promise<void> {
 // defensive). Cached in-process (cascades change rarely) + busted on every
 // cascade write.
 let hiddenNodesCache: { value: Set<string>; expiresAt: number } | null = null;
+let balancerEntryCache: { value: Map<string, string>; expiresAt: number } | null = null;
 const HIDDEN_NODES_TTL_MS = 60_000;
 
 export function invalidateHiddenCascadeNodeCache(): void {
   hiddenNodesCache = null;
+  balancerEntryCache = null;
+}
+
+// Map of ENTRY node id (position 0 of an enabled `balancer` cascade) → the
+// cascade's own name. The subscription relabels these entries to that name so
+// the operator controls the user-facing label by naming the cascade in the
+// panel (the entry hides its N latency-balanced exits behind one endpoint).
+export async function getBalancerEntryLabels(): Promise<Map<string, string>> {
+  if (balancerEntryCache && Date.now() < balancerEntryCache.expiresAt) {
+    return balancerEntryCache.value;
+  }
+  const hops = await prisma.cascadeHop.findMany({
+    where: { position: 0, cascade: { enabled: true, mode: 'balancer' } },
+    select: { nodeId: true, cascade: { select: { name: true } } },
+  });
+  const entries = new Map(hops.map((h) => [h.nodeId, h.cascade.name] as const));
+  balancerEntryCache = { value: entries, expiresAt: Date.now() + HIDDEN_NODES_TTL_MS };
+  return entries;
 }
 
 export async function getHiddenCascadeNodeIds(): Promise<Set<string>> {
