@@ -134,6 +134,16 @@ export const XrayConfigSchema = z.object({
   /** XHTTP request-padding byte range (e.g. "100-1000"). Empty disables
    *  padding; padding helps blur the packet-size signature under DPI. */
   xhttpPaddingBytes: z.string().max(32).default(''),
+  /** XHTTP uplink HTTP method for packet-up. Empty (default) leaves xray's
+   *  default (POST). 'GET' is required when the inbound is fronted by a CDN
+   *  that only forwards GET/HEAD/OPTIONS (e.g. many object-storage CDNs). */
+  xhttpUplinkMethod: z.enum(['GET', 'POST']).optional(),
+  /** XHTTP packet-up split size (bytes). 0/omitted → xray default. Larger
+   *  values raise throughput on high-latency CDN paths. */
+  xhttpScMaxEachPostBytes: z.number().int().min(0).optional(),
+  /** XHTTP packet-up min interval between posts (ms). 0/omitted → xray
+   *  default. Lower values reduce latency at the cost of more requests. */
+  xhttpScMinPostsIntervalMs: z.number().int().min(0).optional(),
   /** gRPC multiMode. false (default) is single-stream; true multiplexes
    *  several gRPC streams per connection for better throughput. */
   grpcMultiMode: z.boolean().default(false),

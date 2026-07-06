@@ -128,6 +128,18 @@ type InboundConfig struct {
 	XhttpMode         string
 	XhttpPaddingBytes string
 
+	// XhttpUplinkMethod overrides the HTTP method the client uses for the
+	// packet-up uplink ("GET" or "POST"). Empty (default) leaves it to xray
+	// (POST). Set to "GET" when the inbound is fronted by a CDN that only
+	// forwards GET/HEAD/OPTIONS (e.g. many object-storage CDNs). Rendered into
+	// `xhttpSettings.extra.uplinkHTTPMethod`.
+	XhttpUplinkMethod string
+	// XhttpScMaxEachPostBytes / XhttpScMinPostsIntervalMs tune the packet-up
+	// split size and pacing; 0 (default) leaves xray's defaults. Larger max +
+	// smaller interval raise throughput on high-latency CDN paths.
+	XhttpScMaxEachPostBytes   int
+	XhttpScMinPostsIntervalMs int
+
 	// B3 GrpcMultiMode (Network == "grpc"): multiplex several gRPC streams per
 	// connection. false (default) keeps the single-stream behaviour.
 	GrpcMultiMode bool
@@ -669,10 +681,25 @@ func buildStreamSettings(cfg InboundConfig) map[string]any {
 		if cfg.HostHeader != "" {
 			xh["host"] = cfg.HostHeader
 		}
-		// B3: request padding blurs the packet-size signature under DPI. Empty
-		// (default) omits `extra`, keeping the render byte-stable.
+		// B3: request padding blurs the packet-size signature under DPI. The same
+		// `extra` object also carries CDN-fronting knobs (uplink method) and
+		// packet-up tuning. Empty defaults omit `extra`, keeping the render
+		// byte-stable for pre-B3 configs.
+		extra := map[string]any{}
 		if cfg.XhttpPaddingBytes != "" {
-			xh["extra"] = map[string]any{"xPaddingBytes": cfg.XhttpPaddingBytes}
+			extra["xPaddingBytes"] = cfg.XhttpPaddingBytes
+		}
+		if cfg.XhttpUplinkMethod != "" {
+			extra["uplinkHTTPMethod"] = cfg.XhttpUplinkMethod
+		}
+		if cfg.XhttpScMaxEachPostBytes > 0 {
+			extra["scMaxEachPostBytes"] = cfg.XhttpScMaxEachPostBytes
+		}
+		if cfg.XhttpScMinPostsIntervalMs > 0 {
+			extra["scMinPostsIntervalMs"] = cfg.XhttpScMinPostsIntervalMs
+		}
+		if len(extra) > 0 {
+			xh["extra"] = extra
 		}
 		stream["xhttpSettings"] = xh
 	case "httpupgrade":

@@ -488,6 +488,9 @@ type xrayInboundCfgWire struct {
 	TLSRejectUnknownSni                     bool   `json:"tlsRejectUnknownSni,omitempty"`
 	XhttpMode                               string `json:"xhttpMode,omitempty"`
 	XhttpPaddingBytes                       string `json:"xhttpPaddingBytes,omitempty"`
+	XhttpUplinkMethod                       string `json:"xhttpUplinkMethod,omitempty"`
+	XhttpScMaxEachPostBytes                 int    `json:"xhttpScMaxEachPostBytes,omitempty"`
+	XhttpScMinPostsIntervalMs               int    `json:"xhttpScMinPostsIntervalMs,omitempty"`
 	GrpcMultiMode                           bool   `json:"grpcMultiMode,omitempty"`
 	// Slice 24c part 3 — controls inbound `protocol` (vless vs trojan) and
 	// `settings.clients` shape. Empty/missing → vless (back-compat).
@@ -574,6 +577,9 @@ func (a *Adapter) ApplyInbound(port int, rawCfg json.RawMessage) error {
 		TLSRejectUnknownSni:                     wire.TLSRejectUnknownSni,
 		XhttpMode:                               wire.XhttpMode,
 		XhttpPaddingBytes:                       wire.XhttpPaddingBytes,
+		XhttpUplinkMethod:                       wire.XhttpUplinkMethod,
+		XhttpScMaxEachPostBytes:                 wire.XhttpScMaxEachPostBytes,
+		XhttpScMinPostsIntervalMs:               wire.XhttpScMinPostsIntervalMs,
 		GrpcMultiMode:                           wire.GrpcMultiMode,
 		Warp:                                    wire.Warp,
 	}
