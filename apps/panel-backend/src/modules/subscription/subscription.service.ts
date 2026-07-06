@@ -321,13 +321,9 @@ export async function generateSubscription(
       const host = hostRow?.addressOverride ?? baseHost;
       const port = hostRow?.portOverride ?? basePort;
       const hostRemark = hostRow?.remark ?? '';
-      const rawNodeName = hostRemark && hostRemark !== 'Default'
+      const nodeName = hostRemark && hostRemark !== 'Default'
         ? `${b.node.name} · ${hostRemark}`
         : b.node.name;
-      // KOSATKA branding: mark every subscription endpoint with the whale.
-      // Country flags/remarks stay in b.node.name / hostRemark; this prefix is
-      // the brand's single consistent mark across all clients.
-      const nodeName = `🐋 ${rawNodeName}`;
       const hostOverrides = hostRow ?? null;
 
     // Slice 30 — common per-host metadata threaded onto each endpoint so
