@@ -73,7 +73,7 @@ REALITY uses SNI spoofing, no domain needed. Create the inbound in the panel fir
 
 ```bash
 sudo -i
-bash <(curl -fsSL https://raw.githubusercontent.com/icecompany-tech/iceslab/main/scripts/install-iceslab-node.sh) \
+bash <(curl -fsSL https://raw.githubusercontent.com/KOSATKA-Tech/iceslab/kosatka-prod/scripts/install-iceslab-node.sh) \
   --panel-url https://panel.example.com \
   --bootstrap bs_xxx \
   --protocol xray \
@@ -89,7 +89,7 @@ A-record `hy2-01.example.com` → VPS IP (DNS only; UDP/443 doesn't pass through
 
 ```bash
 sudo -i
-bash <(curl -fsSL https://raw.githubusercontent.com/icecompany-tech/iceslab/main/scripts/install-iceslab-node.sh) \
+bash <(curl -fsSL https://raw.githubusercontent.com/KOSATKA-Tech/iceslab/kosatka-prod/scripts/install-iceslab-node.sh) \
   --panel-url https://panel.example.com \
   --bootstrap bs_xxx \
   --protocol hysteria \
