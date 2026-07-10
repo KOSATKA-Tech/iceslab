@@ -104,6 +104,15 @@ export function buildVlessRealityUri(opts: VlessRealityUriOpts): string {
     if (opts.path) params.set('path', opts.path);
     if (opts.hostHeader) params.set('host', opts.hostHeader);
   }
+
+  // xhttp over a fronting CDN must stream. Default `auto`/POST uplink is
+  // buffered by many CDNs (Yandex/Beget) and the tunnel returns empty; the
+  // `packet-up` mode with a GET uplink streams cleanly. Emit both so Happ /
+  // xray clients dial the whitelist host correctly. (kosatka БС)
+  if (network === 'xhttp') {
+    params.set('mode', 'packet-up');
+    params.set('extra', JSON.stringify({ path: opts.path ?? '/', uplinkHTTPMethod: 'GET' }));
+  }
   if (network === 'grpc' && opts.serviceName) {
     params.set('serviceName', opts.serviceName);
   }

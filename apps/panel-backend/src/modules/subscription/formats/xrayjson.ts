@@ -265,10 +265,13 @@ export function buildXrayJson(
         ...(e.hostHeader ? { host: e.hostHeader } : {}),
       };
     } else if (network === 'xhttp') {
+      // packet-up + GET uplink so a fronting CDN streams the tunnel instead of
+      // buffering the default auto/POST uplink to empty. (kosatka БС)
       streamSettings.xhttpSettings = {
         ...(e.path ? { path: e.path } : {}),
         ...(e.hostHeader ? { host: e.hostHeader } : {}),
-        mode: 'auto',
+        mode: 'packet-up',
+        extra: { path: e.path ?? '/', uplinkHTTPMethod: 'GET' },
       };
     } else if (network === 'grpc') {
       streamSettings.grpcSettings = { serviceName: e.serviceName ?? '' };
