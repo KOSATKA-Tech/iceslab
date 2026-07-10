@@ -96,6 +96,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       CORS_ORIGIN: ${CORS_ORIGIN}
       PUBLIC_URL: ${PUBLIC_URL}
+      SUBSCRIPTION_PUBLIC_URL: ${SUBSCRIPTION_PUBLIC_URL}
       HYSTERIA_PUBLIC_PORT: ${HYSTERIA_PUBLIC_PORT:-443}
       # Slice S7 — security knobs. Without these the strict per-route
       # rate limits, X-Forwarded-For trust hops, and node-install IP
