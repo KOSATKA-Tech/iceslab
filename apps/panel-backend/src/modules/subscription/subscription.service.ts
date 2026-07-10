@@ -215,7 +215,7 @@ export async function generateSubscription(
               node: { deletedAt: null, status: { not: 'disabled' } },
             },
             include: {
-              profile: { select: { id: true, protocol: true, config: true } },
+              profile: { select: { id: true, name: true, protocol: true, config: true } },
               node: {
                 select: {
                   id: true,
@@ -271,6 +271,19 @@ export async function generateSubscription(
     const tail = bindings.filter((b) => !balancerEntries.has(b.node.id));
     bindings.length = 0;
     bindings.push(...head, ...tail);
+  }
+
+  // Pin the RU-allowlist (bs-cdn / whitelist) binding directly after the Auto
+  // head so the whitelist entry is always the 2nd option in the subscription.
+  {
+    const headCount = bindings.filter((b) => balancerEntries.has(b.node.id)).length;
+    const wlIdx = bindings.findIndex(
+      (b) => (b as { profile?: { name?: string } }).profile?.name === 'bs-cdn',
+    );
+    if (wlIdx > headCount) {
+      const [wl] = bindings.splice(wlIdx, 1);
+      bindings.splice(headCount, 0, wl);
+    }
   }
 
   // Slice 28 — smart node selection. When the route passed topN+cfCountry,
