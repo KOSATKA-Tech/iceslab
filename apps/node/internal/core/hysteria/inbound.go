@@ -199,6 +199,14 @@ func renderConfig(adapterCfg Config, inbound InboundConfig) ([]byte, error) {
 	// "just work" without sacrificing power-user tunability.
 	b.WriteString("\nignoreClientBandwidth: true\n")
 
+	// Keep an idle QUIC session alive far longer than hysteria2's 30 s default so
+	// a phone that backgrounds/sleeps for a couple of minutes resumes on the SAME
+	// session instead of dropping ("конн не держится после простоя"). 120 s is 4×
+	// the default — long enough to ride out short screen-off periods, short enough
+	// that genuinely-dead sessions are still reaped promptly (they cost server RAM).
+	// Truly long sleeps (NAT mapping expires) still need a client-side reconnect.
+	b.WriteString("\nquic:\n  maxIdleTimeout: 120s\n")
+
 	// Cycle #6 reality-check 2026-05-12: Hysteria 2's per-user uplink/downlink
 	// counters are exposed via a separate HTTP API (`trafficStats:` block).
 	// Without this, our adapter's GetStats only returned a userId list with
