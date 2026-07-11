@@ -134,7 +134,7 @@ export default {
       multiplier: 'Consumption multiplier',
       multiplierDesc: '1 = normal, > 1 premium',
       domain: 'Domain (FQDN, optional)',
-      domainDesc: 'A-record this to the node IP. Used as REALITY serverName for self-steal profiles (SNI matches IP, survives RU DPI) and for ACME later.',
+      domainDesc: 'Point an A-record at the node IP FIRST. Used as the REALITY serverName for self-steal profiles (SNI matches IP, survives RU DPI) and as the hysteria ACME cert hostname — changing it re-issues the certificate for the new name, so make sure the DNS record already points here or the node loses TLS.',
       hardeningSection: 'Zashchita (hardening)',
       hardeningSectionDesc: 'Optional probe-resistance toggles applied at install. All off by default.',
       hardeningUfw: 'Firewall lockdown',

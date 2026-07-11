@@ -138,7 +138,7 @@ export default {
       multiplier: 'Consumption multiplier',
       multiplierDesc: '1 = норма, > 1 премиум',
       domain: 'Домен (FQDN, опционально)',
-      domainDesc: 'A-запись на IP ноды. Используется как REALITY serverName для self-steal профилей (SNI совпадает с IP, переживает РФ-DPI) и для ACME позже.',
+      domainDesc: 'Сначала заведите A-запись на IP ноды. Используется как REALITY serverName для self-steal профилей (SNI совпадает с IP, переживает РФ-DPI) и как имя ACME-сертификата hysteria — смена перевыпускает сертификат на новое имя, поэтому убедитесь, что DNS-запись уже указывает сюда, иначе нода потеряет TLS.',
       hardeningSection: 'Защита (hardening)',
       hardeningSectionDesc: 'Опциональные тумблеры защиты от проб, применяются при установке. По умолчанию выключены.',
       hardeningUfw: 'Жёсткий firewall',
