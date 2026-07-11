@@ -184,15 +184,26 @@ const ObfuscationSchema = z.object({
   jmax: z.number().int().min(64).max(1024).default(128),
   s1: z.number().int().min(0).max(64).default(32),
   s2: z.number().int().min(0).max(64).default(56),
-  s3: z.number().int().min(0).max(64).default(32),
-  s4: z.number().int().min(0).max(32).default(16),
+  // S3/S4 are AmneziaWG 2.0 (`amnezia-awg2`) magic-header sizes. On the v1
+  // wire our nodes (amneziawg-go / the kernel module) actually speak, a
+  // NON-ZERO S3/S4 makes the client and the v1 app disagree on the handshake
+  // framing and the tunnel never comes up (the AmneziaVPN/AmneziaWG apps show
+  // an instant connect→disconnect). Default them to 0 for v1; a real 2.0
+  // deployment sets them explicitly. Verified against a working amnezia-awg
+  // reference config which omits S3/S4 entirely.
+  s3: z.number().int().min(0).max(64).default(0),
+  s4: z.number().int().min(0).max(32).default(0),
   // H1-H4 replace the WG message-type marker; the node's config.go validate()
-  // requires each > 4, pairwise distinct, and fitting a uint32. The cross-field
-  // distinctness check lives in AmneziawgConfigSchema's superRefine below.
-  h1: z.number().int().min(5).max(4294967295).default(100),
-  h2: z.number().int().min(5).max(4294967295).default(200),
-  h3: z.number().int().min(5).max(4294967295).default(300),
-  h4: z.number().int().min(5).max(4294967295).default(400),
+  // requires each > 4, pairwise distinct, and fitting a uint32. They must be
+  // LARGE, well-spread uint32 values (like the AmneziaVPN app generates), not
+  // small round numbers — small H (e.g. 100/200/300/400) round-trips oddly
+  // through the awg tooling and the apps refuse the handshake. These are
+  // functional defaults; ideally the panel randomizes them per profile at
+  // creation (see generate-keypair) so servers don't share a fingerprint.
+  h1: z.number().int().min(5).max(4294967295).default(1216467453),
+  h2: z.number().int().min(5).max(4294967295).default(3497194271),
+  h3: z.number().int().min(5).max(4294967295).default(708109927),
+  h4: z.number().int().min(5).max(4294967295).default(2043430631),
   // Hex-encoded mimicry packets — optional, v2.0 feature. When empty,
   // the kernel module skips that slot. Each up to 256 hex chars
   // (128 bytes) per upstream guidance.
