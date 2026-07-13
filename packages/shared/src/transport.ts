@@ -400,6 +400,15 @@ export interface CoreStatus {
 export interface HealthcheckResponse {
   status: 'ok' | 'degraded';
   cores: CoreStatus[];
+  /**
+   * Whether the node can actually reach the public internet, measured by the
+   * agent probing a reliable target (gstatic/generate_204) on a ~25s cache.
+   * `false` means the agent + cores are up but the box has no outbound
+   * connectivity (a firewall/routing fault) — from the panel's view the node
+   * is a dead exit and users routed to it get nothing. Omitted by older agents
+   * that predate the probe → treated as "unknown", never penalised.
+   */
+  egressOk?: boolean;
 }
 
 // ───── GET /metrics ─────

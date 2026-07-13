@@ -69,6 +69,12 @@ type Server struct {
 	logger    *slog.Logger
 	startedAt time.Time
 	collector *metrics.Collector
+
+	// Internet-egress probe result for /healthz, cached ~25s so the endpoint
+	// stays cheap (the panel polls it every 30s). Guarded by egressMu.
+	egressMu sync.Mutex
+	egressOK bool
+	egressAt time.Time
 }
 
 func New(cfg Config) (*Server, error) {
@@ -251,7 +257,58 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	if !allHealthy {
 		status = "degraded"
 	}
-	writeJSON(w, http.StatusOK, dto.HealthcheckResponse{Status: status, Cores: cores})
+	egress := s.egressHealthy()
+	writeJSON(w, http.StatusOK, dto.HealthcheckResponse{Status: status, Cores: cores, EgressOK: &egress})
+}
+
+// egressHealthy reports whether the box can reach the public internet, using a
+// ~25s cache so /healthz stays cheap under the panel's 30s poll. A dead exit
+// (agent + cores up, but no outbound connectivity) is exactly how the London
+// node black-holed the "Auto" balancer while the panel still showed it online;
+// surfacing egress here lets the panel mark such a node unreachable and alert.
+func (s *Server) egressHealthy() bool {
+	s.egressMu.Lock()
+	if !s.egressAt.IsZero() && time.Since(s.egressAt) < 25*time.Second {
+		ok := s.egressOK
+		s.egressMu.Unlock()
+		return ok
+	}
+	s.egressMu.Unlock()
+
+	ok := probeEgress()
+
+	s.egressMu.Lock()
+	s.egressOK = ok
+	s.egressAt = time.Now()
+	s.egressMu.Unlock()
+	return ok
+}
+
+// probeEgress does a short GET to reliable "204" endpoints and returns true if
+// any responds. Two different providers (Google + Cloudflare) so a single
+// provider's blip can't false-alarm; a firewall/routing fault that kills real
+// outbound (like the London INPUT-drop) fails both, which is the signal we want.
+func probeEgress() bool {
+	targets := []string{
+		"https://www.gstatic.com/generate_204",
+		"http://cp.cloudflare.com/generate_204",
+	}
+	client := &http.Client{Timeout: 3 * time.Second}
+	for _, u := range targets {
+		req, err := http.NewRequest(http.MethodGet, u, nil)
+		if err != nil {
+			continue
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			continue
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK {
+			return true
+		}
+	}
+	return false
 }
 
 // handleUfwPorts (G4 probe-exposure) reports the ufw-allowed inbound ports so

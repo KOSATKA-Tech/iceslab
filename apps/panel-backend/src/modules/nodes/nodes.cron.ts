@@ -163,6 +163,15 @@ async function checkOne(node: {
   try {
     const transport = new NodeTransport(node);
     const res = await transport.healthcheck();
+    // A node whose agent + cores are up but that can't reach the internet is a
+    // dead exit — users balanced onto it get nothing (this is exactly how the
+    // London node silently black-holed the "Auto" balancer). The agent reports
+    // this via egressOk; only act on an explicit `false` (omitted = older agent
+    // without the probe → don't penalise). Mark unreachable so the status-flip
+    // alert fires and the node drops out of the metrics/inbound fan-out.
+    if (res.egressOk === false) {
+      return { status: 'unreachable', message: 'no internet egress (node cannot reach the internet)' };
+    }
     if (res.status === 'ok') {
       return { status: 'online', message: null };
     }

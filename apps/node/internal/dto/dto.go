@@ -159,6 +159,11 @@ type CoreStatus struct {
 type HealthcheckResponse struct {
 	Status string       `json:"status"`
 	Cores  []CoreStatus `json:"cores"`
+	// EgressOK reports whether the box can reach the public internet (agent
+	// probes a reliable target on a ~25s cache). Pointer so the field is
+	// omitted on the very first poll before any probe has run — the panel
+	// treats a missing value as "unknown" and never marks the node down for it.
+	EgressOK *bool `json:"egressOk,omitempty"`
 }
 
 // ───── GET /metrics ─────
