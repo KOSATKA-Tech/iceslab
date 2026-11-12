@@ -525,6 +525,9 @@ type xrayInboundCfgWire struct {
 	// fallback reverse-proxies probe requests to this real site instead of the
 	// stub landing page (see selfsteal.go). Empty = static landing (default).
 	RealityFallbackUpstream string `json:"realityFallbackUpstream,omitempty"`
+	// ExtraListenPorts: additional TCP ports for the same user inbound (port
+	// migration, e.g. 8443 -> 443 with both open). Comes from binding overrides.
+	ExtraListenPorts []int `json:"extraListenPorts,omitempty"`
 	// C3: cascade chaining fragments for this node's hop (link-in inbound,
 	// link-out outbound, routing rules). Generated panel-side by
 	// buildCascadeConfigs; nil/missing for plain (non-cascade) nodes.
@@ -566,6 +569,7 @@ func (a *Adapter) ApplyInbound(port int, rawCfg json.RawMessage) error {
 		ListenHost:              a.cfg.Inbound.ListenHost, // install-time identity
 		ListenPort:              effectivePort,            // panel-pushed wins, install-time fallback
 		ApiPort:                 a.cfg.Inbound.ApiPort,    // install-time identity (slice 24c stats)
+		ExtraListenPorts:        wire.ExtraListenPorts,
 		RealityDest:             wire.RealityDest,
 		RealityServerNames:      wire.RealityServerNames,
 		RealityPrivateKey:       wire.RealityPrivateKey,
@@ -644,6 +648,9 @@ func inboundEqual(a, b InboundConfig) bool {
 	if !stringSliceEqual(a.RealityShortIDs, b.RealityShortIDs) {
 		return false
 	}
+	if !intSliceEqual(a.ExtraListenPorts, b.ExtraListenPorts) {
+		return false
+	}
 	if !warpEqual(a.Warp, b.Warp) {
 		return false
 	}
@@ -668,6 +675,18 @@ func warpEqual(a, b *WarpConfig) bool {
 	}
 	for i := range a.Reserved {
 		if a.Reserved[i] != b.Reserved[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func intSliceEqual(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
 			return false
 		}
 	}

@@ -14,6 +14,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/icecompany-tech/iceslab/apps/node/internal/atomicfile"
@@ -31,6 +32,13 @@ type InboundConfig struct {
 
 	// ListenPort is the public TCP port for VLESS+REALITY. Default: 443.
 	ListenPort int
+
+	// ExtraListenPorts are additional TCP ports the SAME user inbound also
+	// listens on (same users, keys and transport). Used to move a node from a
+	// non-standard port to 443 without breaking clients that still hold the
+	// old port: listen on both, hand out the new one, drop the old one later.
+	// Rendered as an xray port list ("8443,443"). Empty = single port.
+	ExtraListenPorts []int
 
 	// REALITY settings — interface-level, not per-user. Slice 23 moves
 	// these into the inbounds table and lets the admin edit them.
@@ -340,7 +348,7 @@ func renderConfigWithCascade(inbound InboundConfig, users []xrayClient, cascade 
 		map[string]any{
 			"tag":            cfg.Tag,
 			"listen":         cfg.ListenHost,
-			"port":           cfg.ListenPort,
+			"port":           listenPortValue(cfg),
 			"protocol":       userInboundProtocol(cfg),
 			"settings":       buildUserInboundSettings(cfg, users),
 			"streamSettings": buildStreamSettings(cfg),
@@ -512,6 +520,26 @@ func renderConfigWithCascade(inbound InboundConfig, users []xrayClient, cascade 
 // facing endpoint based on the configured subprotocol. Both protocols share
 // the REALITY streamSettings stack and the api/stats infrastructure — only
 // the inbound `protocol` and the `clients` element shape differ.
+// listenPortValue renders the user inbound's xray "port": the plain number
+// when there are no extra ports (byte-identical to the pre-extra-ports
+// render), else an xray port list "main,extra1,...". Extras equal to the main
+// port, duplicates and out-of-range values are dropped.
+func listenPortValue(cfg InboundConfig) any {
+	ports := []string{strconv.Itoa(cfg.ListenPort)}
+	seen := map[int]bool{cfg.ListenPort: true}
+	for _, p := range cfg.ExtraListenPorts {
+		if p < 1 || p > 65535 || seen[p] {
+			continue
+		}
+		seen[p] = true
+		ports = append(ports, strconv.Itoa(p))
+	}
+	if len(ports) == 1 {
+		return cfg.ListenPort
+	}
+	return strings.Join(ports, ",")
+}
+
 func userInboundProtocol(cfg InboundConfig) string {
 	switch cfg.Subprotocol {
 	case "trojan":

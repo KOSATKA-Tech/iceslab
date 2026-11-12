@@ -522,6 +522,20 @@ func (s *Server) ensureInboundFirewall(ctx context.Context, ib dto.InboundDto) {
 	for _, proto := range protoForInbound(ib.Protocol) {
 		firewall.Allow(ctx, s.logger, ib.Port, proto)
 	}
+	// xray port migration: the user inbound may also listen on extra TCP
+	// ports (binding overrides.extraListenPorts) - open those too.
+	if ib.Protocol == dto.ProtocolXray && len(ib.Config) > 0 {
+		var cfg struct {
+			ExtraListenPorts []int `json:"extraListenPorts"`
+		}
+		if err := json.Unmarshal(ib.Config, &cfg); err == nil {
+			for _, p := range cfg.ExtraListenPorts {
+				if p >= 1 && p <= 65535 && p != ib.Port {
+					firewall.Allow(ctx, s.logger, p, "tcp")
+				}
+			}
+		}
+	}
 }
 
 // ensureCascadeFirewall opens UFW for the inter-hop cascade link port carried in

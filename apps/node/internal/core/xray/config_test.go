@@ -940,3 +940,30 @@ func TestRender_Trojan_StillUsesRealityStreamSettings(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderConfigExtraListenPorts(t *testing.T) {
+	portOf := func(cfg InboundConfig) any {
+		blob, err := renderConfig(cfg, nil)
+		if err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		var out struct {
+			Inbounds []map[string]any `json:"inbounds"`
+		}
+		if err := json.Unmarshal(blob, &out); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		return out.Inbounds[0]["port"]
+	}
+
+	cfg := validInbound()
+	cfg.ListenPort = 8443
+	if got := portOf(cfg); got != float64(8443) {
+		t.Errorf("no extras: port = %#v, want 8443 number", got)
+	}
+
+	cfg.ExtraListenPorts = []int{443, 8443, 443, 0, 70000}
+	if got := portOf(cfg); got != "8443,443" {
+		t.Errorf("extras: port = %#v, want \"8443,443\"", got)
+	}
+}
